@@ -18,6 +18,8 @@ package com.google.cloud;
 
 import com.google.api.core.InternalApi;
 import com.google.cloud.ExceptionHandler.Interceptor;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Base class for service objects.
@@ -26,6 +28,8 @@ import com.google.cloud.ExceptionHandler.Interceptor;
  */
 public abstract class BaseService<OptionsT extends ServiceOptions<?, OptionsT>>
     implements Service<OptionsT> {
+
+  private static final Logger LOG = Logger.getLogger(BaseService.class.getName());
 
   public static final Interceptor EXCEPTION_HANDLER_INTERCEPTOR =
       new Interceptor() {
@@ -41,6 +45,14 @@ public abstract class BaseService<OptionsT extends ServiceOptions<?, OptionsT>>
         public RetryResult beforeEval(Exception exception) {
           if (exception instanceof BaseServiceException) {
             boolean retriable = ((BaseServiceException) exception).isRetryable();
+            if (LOG.isLoggable(Level.INFO) && retriable) {
+              LOG.log(
+                  Level.INFO,
+                  "Getting retriableException:\n{0}",
+                  new Object[] {
+                    exception.toString(),
+                  });
+            }
             return retriable
                 ? Interceptor.RetryResult.RETRY
                 : Interceptor.RetryResult.CONTINUE_EVALUATION;

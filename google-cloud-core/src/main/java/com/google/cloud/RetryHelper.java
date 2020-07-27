@@ -29,6 +29,8 @@ import com.google.api.gax.retrying.RetryingFuture;
 import com.google.api.gax.retrying.TimedRetryAlgorithm;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Utility class for retrying operations. For more details about the parameters, see {@link
@@ -36,12 +38,29 @@ import java.util.concurrent.ExecutionException;
  */
 @BetaApi
 public class RetryHelper {
+  private static final Logger LOG = Logger.getLogger(RetryHelper.class.getName());
+
   public static <V> V runWithRetries(
       Callable<V> callable,
       RetrySettings retrySettings,
       ResultRetryAlgorithm<?> resultRetryAlgorithm,
       ApiClock clock)
       throws RetryHelperException {
+    if (LOG.isLoggable(Level.INFO)) {
+      LOG.log(
+          Level.INFO,
+          "Retry settings:\n{0}\n{1}\n{2}\n{3}\n{4}\n{5}\n{6}\n{7}",
+          new Object[] {
+            "getInitialRetryDelay():" + retrySettings.getInitialRetryDelay(),
+            "getInitialRpcTimeout():" + retrySettings.getInitialRpcTimeout(),
+            "getMaxAttempts():" + retrySettings.getMaxAttempts(),
+            "getMaxRetryDelay():" + retrySettings.getMaxRetryDelay(),
+            "getRetryDelayMultiplier():" + retrySettings.getRetryDelayMultiplier(),
+            "getRpcTimeoutMultiplier():" + retrySettings.getRpcTimeoutMultiplier(),
+            "getMaxRpcTimeout():" + retrySettings.getMaxRpcTimeout(),
+            "getTotalTimeout():" + retrySettings.getTotalTimeout()
+          });
+    }
     try {
       // Suppressing should be ok as a workaraund. Current and only ResultRetryAlgorithm
       // implementation does not use response at all, so ignoring its type is ok.
@@ -49,6 +68,12 @@ public class RetryHelper {
       ResultRetryAlgorithm<V> algorithm = (ResultRetryAlgorithm<V>) resultRetryAlgorithm;
       return run(callable, new ExponentialRetryAlgorithm(retrySettings, clock), algorithm);
     } catch (Exception e) {
+      if (LOG.isLoggable(Level.INFO)) {
+        LOG.log(
+            Level.INFO,
+            "Terminating. nonRetriableException thrown during retry:\n",
+            new RetryHelperException(e.getCause()));
+      }
       // TODO: remove RetryHelperException, throw InterruptedException or
       // ExecutionException#getCause() explicitly
       throw new RetryHelperException(e.getCause());
